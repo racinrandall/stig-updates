@@ -1,4 +1,9 @@
 ---
+- name: Install fipscheck package
+  package:
+    name: fipscheck
+    state: latest
+
 - name: "PRELIM | RHEL-08-010020 | RHEL-08-010140 | RHEL-08-010150 | Check whether machine is UEFI-based"
   stat:
       path: /sys/firmware/efi
@@ -11,6 +16,19 @@
   changed_when: no
   check_mode: no
   register: rhel_08_boot_part
+
+- name: "MEDIUM | RHEL-08-010660 | RHEL-08-010770 | AUDIT | Find ini files for interactive users."
+  shell: find "{{ item }}" -maxdepth 1 -type f | awk -F"/" '$NF ~ /^\..*$/ {print $NF}' | grep -v history
+  args:
+      warn: no
+  with_items: "{{ rhel_08_stig_interactive_homedir_results }}"
+  register: rhel_08_010770_ini_file_list
+  changed_when: no
+  failed_when: false
+
+- name: "MEDIUM | RHEL-08-010660 | RHEL-08-010770 | Set fact for home directory paths for interactive users"
+  set_fact:
+      rhel_08_stig_interactive_homedir_inifiles: "{{ rhel_08_010770_ini_file_list.results | map(attribute='stdout_lines') | list }}"
 
 - name: remove unneeded audit rules before applying proper rules
   file:
@@ -27,6 +45,18 @@
     src: audit.rules.j2
     dest: /etc/audit/rules.d/audit.rules
   notify: restart_auditd
+
+- name: "MEDIUM | RHEL-08-010070 | PATCH | All RHEL 8 remote access methods must be monitored."
+  lineinfile:
+      path: /etc/rsyslog.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      create: yes
+      mode: '0644'
+  notify: restart rsyslog
+  with_items:
+      - { regexp: '^auth.*', line: 'auth.*,authpriv.* /var/log/secure' }
+      - { regexp: '^daemon.*', line: 'daemon.* /var/log/messages' }
 
 - name: "MEDIUM | RHEL-08-010130 | PATCH | RHEL 8 must employ FIPS 140-2 approved cryptographic hashing algorithms for all created passwords. | Add rounds argument"
   pamd:
@@ -379,6 +409,13 @@
       enabled: no
       state: stopped
 
+- name: "MEDIUM | RHEL-08-010770 | PATCH | All RHEL 8 local initialization files must have mode 0740 or less permissive."
+  file:
+      path: "{{ item }}"
+      mode: 0740
+  with_items:
+      - "{{ rhel_08_stig_interactive_homedir_inifiles }}"
+
 - name: "MEDIUM | RHEL-08-010830 | PATCH |Unattended or automatic logon to RHEL 8 via ssh must not be allowed."
   lineinfile:
       path: /etc/ssh/sshd_config
@@ -726,6 +763,12 @@
             - system-auth
             - password-auth
 
+- name: "LOW | RHEL-08-020042 | PATCH | RHEL 8 must prevent users from disabling session control mechanisms."
+  lineinfile:
+      path: /etc/shells
+      regexp: 'tmux'
+      state: absent
+
 - name: "MEDIUM | RHEL-08-020050 | PATCH | RHEL 8 must be able to initiate directly a session lock for all connection types using smartcard when the smartcard is removed."
   block:
       - name: "MEDIUM | RHEL-08-020050 | AUDIT | RHEL 8 must be able to initiate directly a session lock for all connection types using smartcard when the smartcard is removed. | Find removal-action param"
@@ -1000,6 +1043,70 @@
       group: root
       mode: 0644
 
+- name: "LOW | RHEL-08-030601 | PATCH | RHEL 8 must enable auditing of processes that start prior to the audit daemon."
+  block:
+      - name: "LOW | RHEL-08-030601 | AUDIT | RHEL 8 must enable auditing of processes that start prior to the audit daemon. | Get GRUB_CMDLINE_LINUX settings"
+        shell: grep GRUB_CMDLINE_LINUX= /etc/default/grub | cut -f2 -d'"'
+        changed_when: false
+        failed_when: false
+        register: rhel8stig_030601_grub_cmdline_linux
+
+      - name: "LOW | RHEL-08-030601 | PATCH | RHEL 8 must enable auditing of processes that start prior to the audit daemon. | Set audit to 1 as active"
+        shell: grubby --update-kernel=ALL --args="audit=1"
+        args:
+            warn: no
+
+      - name: "LOW | RHEL-08-030601 | PATCH | RHEL 8 must enable auditing of processes that start prior to the audit daemon. | Set audit=1 for kernel updates if doesnt exist"
+        lineinfile:
+            path: /etc/default/grub
+            regexp: '^GRUB_CMDLINE_LINUX='
+            line: 'GRUB_CMDLINE_LINUX="{{ rhel8stig_030601_grub_cmdline_linux.stdout }} audit=1"'
+        when: '"audit=" not in rhel8stig_030601_grub_cmdline_linux.stdout'
+
+      - name: "LOW | RHEL-08-030601 | PATCH | RHEL 8 must enable auditing of processes that start prior to the audit daemon. | Set audit=1 for kernel updates if exists"
+        replace:
+            path: /etc/default/grub
+            regexp: 'audit=([^\s|"])+'
+            replace: "audit=1"
+        when: '"audit=" in rhel8stig_030601_grub_cmdline_linux.stdout'
+
+- name: "LOW | RHEL-08-030602 | PATCH | RHEL 8 must allocate an audit_backlog_limit of sufficient size to capture processes that start prior to the audit daemon."
+  block:
+      - name: "LOW | RHEL-08-030602 | AUDIT | RHEL 8 must allocate an audit_backlog_limit of sufficient size to capture processes that start prior to the audit daemon. | Get GRUB_CMDLINE_LINUX settings"
+        shell: grep GRUB_CMDLINE_LINUX= /etc/default/grub | cut -f2 -d'"'
+        changed_when: false
+        failed_when: false
+        register: rhel8stig_030602_grub_cmdline_linux
+
+      - name: "LOW | RHEL-08-030602 | PATCH | RHEL 8 must allocate an audit_backlog_limit of sufficient size to capture processes that start prior to the audit daemon. | set audit_backlog_limit active"
+        shell: grubby --update-kernel=ALL --args="audit_backlog_limit=8192"
+        args:
+            warn: no
+
+      - name: "LOW | RHEL-08-030602 | PATCH | RHEL 8 must allocate an audit_backlog_limit of sufficient size to capture processes that start prior to the audit daemon. | Set audit audit_backlog_limit for kernel updates if doesn't exist"
+        lineinfile:
+            path: /etc/default/grub
+            regexp: '^GRUB_CMDLINE_LINUX='
+            line: 'GRUB_CMDLINE_LINUX="{{ rhel8stig_030602_grub_cmdline_linux.stdout }} audit_backlog_limit=8192"'
+        when: '"audit_backlog_limit=" not in rhel8stig_030602_grub_cmdline_linux.stdout'
+
+      - name: "LOW | RHEL-08-030602 | PATCH | RHEL 8 must allocate an audit_backlog_limit of sufficient size to capture processes that start prior to the audit daemon. | Set audit audit_backlog_limit for kernel updates if exists"
+        replace:
+            path: /etc/default/grub
+            regexp: 'audit_backlog_limit=([^\s|"])+'
+            replace: "audit_backlog_limit=8192"
+        when: '"audit_backlog_limit=" in rhel8stig_030602_grub_cmdline_linux.stdout'
+
+- name: "LOW | RHEL-08-030603 | PATCH | RHEL 8 must enable Linux audit logging for the USBGuard daemon"
+  lineinfile:
+      path: /etc/usbguard/usbguard-daemon.conf
+      regexp: '^AuditBackend='
+      line: "AuditBackend=LinuxAudit"
+      create: yes
+      owner: root
+      group: root
+      mode: 0600
+
 - name: "MEDIUM | RHEL-08-030650 | PATCH | RHEL 8 must use cryptographic mechanisms to protect the integrity of audit tools."
   lineinfile:
       path: /etc/aide.conf
@@ -1081,6 +1188,138 @@
       line: 'server {{ rhel8stig_ntp_server_name }} iburst maxpoll 16'
   notify: restart {{ rhel8stig_time_service }}
 
+- name: "LOW | RHEL-08-030741 | PATCH | RHEL 8 must disable the chrony daemon from acting as a server."
+  lineinfile:
+      path: /etc/chrony.conf
+      regexp: '^port|#port'
+      line: "port 0"
+
+- name: "LOW | RHEL-08-030742 | PATCH | RHEL 8 must disable network management of the chrony daemon."
+  lineinfile:
+      path: /etc/chrony.conf
+      regexp: '^cmdport|#cmdport'
+      line: "cmdport 0"
+
+- name: "LOW | RHEL-08-040004 | PATCH | RHEL 8 must enable mitigations against processor-based vulnerabilities."
+  block:
+      - name: "LOW | RHEL-08-040004 | PATCH | RHEL 8 must enable mitigations against processor-based vulnerabilities. | Get GRUB_CMDLINE_LINUX settings"
+        shell: grep GRUB_CMDLINE_LINUX= /etc/default/grub | cut -f2 -d'"'
+        args:
+            warn: no
+        changed_when: false
+        failed_when: false
+        register: rhel8stig_040004_grub_cmdline_linux
+
+      - name: "LOW | RHEL-08-040004 | PATCH | RHEL 8 must enable mitigations against processor-based vulnerabilities. | Set pti=on active"
+        shell: grubby --update-kernel=ALL --args="pti=on"
+        args:
+            warn: no
+
+      - name: "LOW | RHEL-08-040004 | PATCH | RHEL 8 must enable mitigations against processor-based vulnerabilities. | Set pti if doesn't exist"
+        lineinfile:
+            path: /etc/default/grub
+            regexp: '^GRUB_CMDLINE_LINUX='
+            line: 'GRUB_CMDLINE_LINUX="{{ rhel8stig_040004_grub_cmdline_linux.stdout }} pti=on"'
+        when: '"pti=" not in rhel8stig_040004_grub_cmdline_linux.stdout'
+
+      - name: "LOW | RHEL-08-040004 | PATCH | RHEL 8 must enable mitigations against processor-based vulnerabilities. | Set pti exists"
+        replace:
+            path: /etc/default/grub
+            regexp: 'pti=([^\s|"])+'
+            replace: "pti=on"
+        when: '"pti=" in rhel8stig_040004_grub_cmdline_linux.stdout'
+
+- name: "LOW | RHEL-08-040021 | PATCH | RHEL 8 must disable the asynchronous transfer mode (ATM) protocol."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install ATM', line: 'install ATM /bin/true', insertafter: 'EOF' }
+      - { regexp: '^blacklist ATM', line: 'blacklist ATM', insertafter: '^install ATM /bin/true' }
+
+- name: "LOW | RHEL-08-040022 | PATCH | RHEL 8 must disable the controller area network (CAN) protocol."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install CAN', line: 'install CAN /bin/true', insertafter: 'EOF' }
+      - { regexp: 'blacklist CAN', line: 'blacklist CAN', insertafter: '^install CAN /bin/true' }
+
+- name: "LOW | RHEL-08-040023 | PATCH | RHEL 8 must disable the stream control transmission (SCTP) protocol."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install SCTP', line: 'install SCTP /bin/true', insertafter: 'EOF' }
+      - { regexp: '^blacklist SCTP', line: 'blacklist SCTP', insertafter: '^install SCTP' }
+
+- name: "LOW | RHEL-08-040024 | PATCH | RHEL 8 must disable the transparent inter-process communication (TIPC) protocol."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install TIPC', line: 'install TIPC /bin/true', insertafter: 'EOF' }
+      - { regexp: '^blacklist TIPC', line: 'blacklist TIPC', insertafter: '^install TIPC' }
+
+- name: "LOW | RHEL-08-040025 | PATCH | RHEL 8 must disable mounting of cramfs."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install cramfs', line: 'install cramfs /bin/true', insertafter: 'EOF' }
+      - { regexp: 'blacklist cramfs', line: 'blacklist cramfs', insertafter: '^install cramfs' }
+
+- name: "LOW | RHEL-08-040026 | PATCH | RHEL 8 must disable IEEE 1394 (FireWire) Support."
+  lineinfile:
+      path: /etc/modprobe.d/blacklist.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: reboot system
+  with_items:
+      - { regexp: '^install firewire-core', line: 'install firewire-core /bin/true', insertafter: 'EOF' }
+      - { regexp: '^blacklist firewire-core', line: 'blacklist firewire-core', insertafter: '^install firewire-core' }
+
+
 - name: "MEDIUM | RHEL-08-040080 | PATCH | RHEL 8 must be configured to disable USB mass storage."
   lineinfile:
       path: "{{ item.path }}"
@@ -1094,6 +1333,36 @@
   with_items:
       - { path: /etc/modprobe.d/usb-storage.conf, regexp: '^install usb-storage', line: 'install usb-storage /bin/true', insertafter: 'EOF' }
       - { path: /etc/modprobe.d/blacklist.conf, regexp: '^blacklist usb-storage', line: 'blacklist usb-storage', insertafter: '#blacklist usb-storage'}
+
+- name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems."
+  block:
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone"
+        firewalld:
+            zone: "{{ rhel8stig_custom_firewall_zone }}"
+            permanent: true
+            state: present
+
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Allow internet and ssh"
+        firewalld:
+            zone: "{{ rhel8stig_custom_firewall_zone }}"
+            permanent: true
+            state: enabled
+            service: "{{ item }}"
+        with_items:
+            - "{{ rhel8stig_white_list_services }}"
+
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Reload zones"
+        command: firewall-cmd --reload
+        changed_when: rhel_08_040090_zone_reload.rc == 0
+        failed_when: rhel_08_040090_zone_reload.rc >= 2
+        register: rhel_08_040090_zone_reload
+
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone as default"
+        command: "firewall-cmd --set-default-zone={{ rhel8stig_custom_firewall_zone }}"
+        changed_when: rhel_08_040090_default_zone_set.rc == 0
+        failed_when: rhel_08_040090_default_zone_set.rc >= 2
+        register: rhel_08_040090_default_zone_set
+
 
 - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs."
   block:
@@ -1126,3 +1395,152 @@
             regexp: '^permissive ='
             line: 'permissive = 0'
 
+- name: "MEDIUM | RHEL-08-040150 | PATCH | A firewall must be able to protect against or limit the effects of Denial of Service (DoS) attacks by ensuring RHEL 8 can implement rate-limiting measures on impacted network interfaces."
+  block:
+      - name: "MEDIUM | RHEL-08-040150 | PATCH | A firewall must be able to protect against or limit the effects of Denial of Service (DoS) attacks by ensuring RHEL 8 can implement rate-limiting measures on impacted network interfaces. | Install nftables"
+        dnf:
+            name: nftables
+            state: present
+
+      - name: "MEDIUM | RHEL-08-040150 | PATCH | A firewall must be able to protect against or limit the effects of Denial of Service (DoS) attacks by ensuring RHEL 8 can implement rate-limiting measures on impacted network interfaces. | Start/Enable nftables"
+        service:
+            name: nftables
+            state: started
+            enabled: yes
+
+      - name: "MEDIUM | RHEL-08-040150 | PATCH | A firewall must be able to protect against or limit the effects of Denial of Service (DoS) attacks by ensuring RHEL 8 can implement rate-limiting measures on impacted network interfaces. | Configure FirewallBackend"
+        lineinfile:
+            path: /etc/firewalld/firewalld.conf
+            regexp: '^FirewallBackend='
+            line: 'FirewallBackend=nftables'
+
+- name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed."
+  block:
+      - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed. | Check for setting existing"
+        command: grep -s logout /etc/dconf/db/local.d/*
+        changed_when: false
+        failed_when: false
+        register: rhel_08_040171_logout_settings_status
+
+      - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed. | Add if missing"
+        lineinfile:
+            path: /etc/dconf/db/local.d/00-disable-CAD
+            regexp: "{{ item.regexp }}"
+            line: "{{ item.line }}"
+            insertafter: "{{ item.insertafter }}"
+            create: yes
+            owner: root
+            group: root
+            mode: 0644
+        with_items:
+            - { regexp: '^\[org/gnome/settings-daemon/plugins/media-keys\]', line: '[org/gnome/settings-daemon/plugins/media-keys]', insertafter: 'EOF' }
+            - { regexp: 'logout=', line: "logout=''", insertafter: '\[org/gnome/settings-daemon/plugins/media-keys\]' }
+        when: rhel_08_040171_logout_settings_status.stdout | length == 0
+
+      - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed. | Edit if exists"
+        replace:
+            path: "{{ rhel_08_040171_logout_settings_status.stdout }}"
+            regexp: '^[L|l]ogout=.*'
+            replace: "logout=''"
+        when: rhel_08_040171_logout_settings_status.stdout | length > 0
+
+- name: "MEDIUM | RHEL-08-040260 | PATCH | The RHEL 8 must not be performing packet forwarding unless the system is a router."
+  block:
+      - name: "MEDIUM | RHEL-08-040260 | PATCH | The RHEL 8 must not be performing packet forwarding unless the system is a router. | Set ip_forward in sysctl"
+        sysctl:
+            name: "{{ item }}"
+            state: present
+            value: '0'
+            reload: "{{ rhel8stig_sysctl_reload }}"
+        with_items:
+            - net.ipv4.ip_forward
+            - net.ipv6.conf.all.forwarding
+
+      - name: "MEDIUM | RHEL-08-040260 | PATCH | The RHEL 8 must not be performing packet forwarding unless the system is a router. | Set ip_forward value to 0"
+        lineinfile:
+            path: /etc/sysctl.conf
+            regexp: "{{ item.regexp }}"
+            line: "{{ item.line }}"
+        with_items:
+            - { regexp: '^net.ipv4.ip_forward', line: 'net.ipv4.ip_forward=0' }
+            - { regexp: '^net.ipv6.conf.all.forwarding', line: 'net.ipv6.conf.all.forwarding=0' }
+
+- name: "MEDIUM | RHEL-08-040290 | PATCH | The RHEL 8 must be configured to prevent unrestricted mail relaying."
+  block:
+      - name: "MEDIUM | RHEL-08-040290 | AUDIT | The RHEL 8 must be configured to prevent unrestricted mail relaying. | Check if postfix is installed."
+        command: rpm -q postfix
+        failed_when: no
+        check_mode: no
+        changed_when: no
+        register: rhel_08_040290_rpm_audit
+
+      - name: "MEDIUM | RHEL-08-040290 | PATCH | The RHEL 8 must be configured to prevent unrestricted mail relaying. | Set restriction"
+        command: "postconf -e 'smtpd_client_restrictions = permit_mynetworks,reject'"
+        check_mode: no
+        when: '"postfix-" in rhel_08_040290_rpm_audit.stdout'
+
+- name: |
+        "LOW | RHEL-08-040300 | PATCH | The RHEL 8 file integrity tool must be configured to verify extended attributes."
+        "LOW | RHEL-08-040310 | PATCH | The RHEL 8 file integrity tool must be configured to verify Access Control Lists (ACLs)."
+  template:
+      src: aide.conf.j2
+      dest: /etc/aide.conf
+      owner: root
+      group: root
+      mode: '0600'
+
+- name: "MEDIUM | RHEL-08-040340 | PATCH | RHEL 8 remote X connections for interactive users must be disabled unless to fulfill documented and validated mission requirements."
+  lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '(?i)^#?X11Forwarding'
+      line: 'X11Forwarding no'
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: restart sshd
+
+- name: "MEDIUM | RHEL-08-040340 | PATCH | RHEL 8 remote X connections for interactive users must be disabled unless to fulfill documented and validated mission requirements."
+  lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '(?i)^#?X11Forwarding'
+      line: 'X11Forwarding no'
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+  notify: restart sshd
+
+- name: "MEDIUM | RHEL-08-040341 | PATCH | The RHEL 8 SSH daemon must prevent remote hosts from connecting to the proxy display."
+  lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '(?i)^#?X11UseLocalhost'
+      line: 'X11UseLocalhost yes'
+
+- name: "MEDIUM | RHEL-08-010730 | PATCH | All RHEL 8 local interactive user home directories must have mode 0750 or less permissive."
+  block:
+      - name: "MEDIUM | RHEL-08-010730 | AUDIT | All RHEL 8 local interactive user home directories must have mode 0750 or less permissive."
+        shell: ls -d $(awk -F':' '($3>=1000)&&($1!="nobody"){print $6}' /etc/passwd)
+        changed_when: false
+        failed_when: false
+        register: rhel_08_010730_home_directories
+
+      - name: "MEDIUM | RHEL-08-010730 | PATCH | All RHEL 8 local interactive user home directories must have mode 0750 or less permissive."
+        file:
+            path: "{{ item }}"
+            mode: 0750
+        with_items:
+            - "{{ rhel_08_010730_home_directories.stdout_lines }}"
+        when: rhel_08_010730_home_directories.stdout | length > 0
+
+- name: "MEDIUM | RHEL-08-010100 | PATCH | RHEL 8, for certificate-based authentication, must enforce authorized access to the corresponding private key."
+  block:
+      - name: "MEDIUM | RHEL-08-010100 | PATCH | RHEL 8, for certificate-based authentication, must enforce authorized access to the corresponding private key. | Create .ssh folder"
+        file:
+            path: "{{ rhel8stig_path_to_sshkey }}"
+            state: directory
+            mode: '0700'
+
+      - name: "MEDIUM | RHEL-08-010100 | PATCH | RHEL 8, for certificate-based authentication, must enforce authorized access to the corresponding private key. | Create key pair"
+        openssh_keypair:
+            path: "{{ rhel8stig_path_to_sshkey }}/id_rsa"
