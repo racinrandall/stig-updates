@@ -91,3 +91,4 @@ rhel8stig_system_is_container: false
 rhel8stig_sysctl_reload: "{{ not rhel8stig_system_is_container }}"
 
 rhel8stig_path_to_sshkey: "/root/.ssh/"
+rhel8stig_int_gid: 1000
