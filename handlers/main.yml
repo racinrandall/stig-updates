@@ -41,7 +41,7 @@
       name: rsyslog
       state: restarted
 
-- name: restart chronyd
+- name: "restart {{ rhel8stig_time_service }}"
   service:
-    name: chronyd
-    state: restarted
+      name: "{{ rhel8stig_time_service }}"
+      state: restarted
