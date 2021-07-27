@@ -3,3 +3,22 @@
   command: /usr/sbin/service auditd restart
   args:
     warn: no
+
+- name: reboot system
+  shell: sleep 3; reboot
+  async: 15
+  poll: 0
+
+- name: restart sshd
+  service:
+      name: sshd
+      state: restarted
+
+- name: restart sssd
+  service:
+      name: sssd
+      state: restarted
+
+- name: dconf update
+  command: dconf update
+
