@@ -79,3 +79,6 @@ rhel8stig_remotelog_server:
     port: 9999
 
 rhel8stig_time_service: chronyd
+# Change this to match your ntp server
+
+rhel8stig_ntp_server_name: server.name
