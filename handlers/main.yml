@@ -15,11 +15,10 @@
       state: restarted
 
 - name: restart sssd
-#  service:
-#      name: sssd
-#      state: restarted
-  debug:
-    msg: Restart SSSD
+  service:
+      name: sssd
+      state: restarted
+
     
 - name: dconf update
   command: dconf update

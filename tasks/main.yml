@@ -864,3 +864,265 @@
         check_mode: "{{ rhel8stig_disruptive_check_mode }}"
         with_items: "{{ rhel_08_020210_users.stdout_lines }}"
 
+- name: "MEDIUM | RHEL-08-20230 | PATCH | RHEL 8 passwords must have a minimum of 15 characters."
+  lineinfile:
+      path: /etc/security/pwquality.conf
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: '^#?\s*minlen'
+      line: "minlen = {{ rhel8stig_password_complexity.minlen | default('15') }}"
+
+- name: "MEDIUM | RHEL-08-020231 | PATCH | RHEL 8 passwords for new users must have a minimum of 15 characters."
+  lineinfile:
+      path: /etc/login.defs
+      regexp: '^PASS_MIN_LEN|^#PASS_MIN_LEN'
+      line: "PASS_MIN_LEN 15"
+      owner: root
+      group: root
+      mode: 0644
+
+- name: "MEDIUM | RHEL-08-020300 | PATCH | RHEL 8 must prevent the use of dictionary words for passwords."
+  lineinfile:
+      path: /etc/security/pwquality.conf
+      create: yes
+      regexp: '^#?\s*dictcheck'
+      line: "dictcheck = {{ rhel8stig_password_complexity.dictcheck | default('1') }}"
+      owner: root
+      group: root
+      mode: 0644
+
+- name: "MEDIUM | RHEL-08-020310 | PATCH | RHEL 8 must enforce a delay of at least four seconds between logon prompts following a failed logon attempt."
+  lineinfile:
+      dest: /etc/login.defs
+      regexp: ^#?FAIL_DELAY
+      line: "FAIL_DELAY {{ rhel8stig_login_defaults.fail_delay_secs | default('4') }}"
+      owner: root
+      group: root
+      mode: 0644
+
+- name: "MEDIUM | RHEL-08-020320 | PATCH | RHEL 8 must not have unnecessary accounts."
+  block:
+      - name: "MEDIUM | RHEL-08-020320 | AUDIT | RHEL 8 must not have unnecessary accounts. | Find unnecessary accounts"
+        command: "grep '^{{ item }}:' /etc/passwd"
+        check_mode: no
+        failed_when: rhel_08_020320_unnecessary_accounts_found.rc > 1
+        changed_when: rhel_08_020320_unnecessary_accounts_found.rc == 0
+        register: rhel_08_020320_unnecessary_accounts_found
+        with_items: "{{ rhel8stig_unnecessary_accounts }}"
+
+
+      - name: "MEDIUM | RHEL-08-020320 | PATCH | RHEL 8 must not have unnecessary accounts. | Remove accounts"
+        user:
+            name: "{{ item }}"
+            state: absent
+            remove: "{{ rhel8stig_remove_unnecessary_user_files }}"
+        register: rhel_08_020320_accounts_removed
+        with_items: "{{ rhel8stig_unnecessary_accounts }}"
+
+      - name: "MEDIUM | RHEL-08-020320 | AUDIT | RHEL 8 must not have unnecessary accounts. | Re-parse passwd file"
+        include_tasks: parse_etc_passwd.yml
+        vars:
+            rhel8stig_passwd_tasks: "RHEL-08-020320"
+        when: rhel_08_020320_accounts_removed is changed
+
+- name: "LOW | RHEL-08-020340 | PATCH | RHEL 8 must display the date and time of the last successful account logon upon logon."
+  block:
+      - name: "LOW | RHEL-08-020340 | PATCH | RHEL 8 must display the date and time of the last successful account logon upon logon. | Set session required for pam_lastlog.so"
+        pamd:
+            name: postlogin
+            type: session
+            control: optional
+            new_control: required
+            module_path: pam_lastlog.so
+            state: updated
+
+      - name: "LOW | RHEL-08-020340 | PATCH | RHEL 8 must display the date and time of the last successful account logon upon logon. | Remove default=1 and optional control"
+        pamd:
+            name: postlogin
+            type: session
+            state: args_absent
+            control: "{{ item }}"
+            module_path: pam_lastlog.so
+            module_arguments: silent
+        with_items:
+            - '[default=1]'
+            - required
+
+- name: "MEDIUM | RHEL-08-020350 | PATCH | RHEL 8 must display the date and time of the last successful account logon upon an SSH logon."
+  lineinfile:
+      dest: /etc/ssh/sshd_config
+      regexp: '(?i)^#?PrintLastLog'
+      line: 'PrintLastLog yes'
+      validate: /usr/sbin/sshd -t -f %s
+      owner: root
+      group: root
+      mode: 0644
+  notify: restart sshd
+
+- name: "MEDIUM | RHEL-08-020351 | PATCH |  RHEL 8 must define default permissions for all authenticated users in such a way that the user can only read and modify their own files."
+  lineinfile:
+      path: /etc/login.defs
+      regexp: ^#?UMASK.*
+      line: "UMASK           {{ rhel8stig_login_defaults.umask | default('077') }}"
+      owner: root
+      group: root
+      mode: 0644
+
+- name: "MEDIUM | RHEL-08-020353 | PATCH | RHEL 8 must define default permissions for logon and non-logon shells."
+  replace:
+      path: "{{ item }}"
+      regexp: 'umask\s\d\d\d'
+      replace: "umask {{ rhel8stig_login_defaults.umask | default('077') }}"
+  with_items:
+      - /etc/bashrc
+      - /etc/csh.cshrc
+
+- name: "MEDIUM | RHEL-08-030040 | PATCH | The RHEL 8 System must take appropriate action when an audit processing failure occurs."
+  lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^disk_error_action ='
+      line: "disk_error_action = {{ rhel8stig_auditd_disk_error_action }}"
+
+- name: "MEDIUM | RHEL-08-030050 | PATCH | The RHEL 8 System Administrator (SA) and Information System Security Officer (ISSO) (at a minimum) must be alerted when the audit storage volume is full."
+  lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^max_log_file_action ='
+      line: "max_log_file_action = {{ rhel8stig_auditd_max_log_file_action }}"
+
+- name: "MEDIUM | RHEL-08-030060 | PATCH | The RHEL 8 audit system must take appropriate action when the audit storage volume is full."
+  lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^disk_full_action ='
+      line: "disk_full_action = {{ rhel8stig_auditd_disk_full_action }}"
+      owner: root
+      group: root
+      mode: 0644
+
+- name: "MEDIUM | RHEL-08-030650 | PATCH | RHEL 8 must use cryptographic mechanisms to protect the integrity of audit tools."
+  lineinfile:
+      path: /etc/aide.conf
+      line: "{{ item }}"
+      owner: root
+      group: root
+      mode: 0600
+  with_items:
+      - "# Audit Tools"
+      - /usr/sbin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/autrace p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/audisp-remote p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/audisp-syslog p+i+n+u+g+s+b+acl+xattrs+sha512
+      - /usr/sbin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+
+- name: "MEDIUM | RHEL-08-030660 | AUDIT | RHEL 8 must allocate audit record storage capacity to store at least one week of audit records, when audit records are not immediately sent to a central audit record storage facility."
+  block:
+      - name: "MEDIUM | RHEL-08-030660 | AUDIT | RHEL 8 must allocate audit record storage capacity to store at least one week of audit records, when audit records are not immediately sent to a central audit record storage facility. | Get audit log partition"
+        shell: grep log_file /etc/audit/auditd.conf | grep -v max | awk '{print $3}' | sed 's|\(.*\)/.*|\1|'
+        changed_when: false
+        failed_when: false
+        register: rhel_08_030660_audit_log_path
+
+      - name: "MEDIUM | RHEL-08-030660 | AUDIT | RHEL 8 must allocate audit record storage capacity to store at least one week of audit records, when audit records are not immediately sent to a central audit record storage facility. | Get size of audit log partition"
+        shell: "df -h {{ rhel_08_030660_audit_log_path.stdout }}"
+        changed_when: false
+        failed_when: false
+        register: rhel_08_030660_audit_log_partition
+
+      - name: "MEDIUM | RHEL-08-030660 | AUDIT | RHEL 8 must allocate audit record storage capacity to store at least one week of audit records, when audit records are not immediately sent to a central audit record storage facility. | Message out partition size"
+        debug:
+            msg:
+                - "ALERT!!!Below is the path and size of the partiion for the audit logs. Please make sure there is enough disk space for logs and logs are on their own partition"
+                - "Path: {{ rhel_08_030660_audit_log_path.stdout }}"
+                - "Disk Space: {{ rhel_08_030660_audit_log_partition.stdout }}"
+
+- name: "MEDIUM | RHEL-08-030690 | PATCH | The RHEL 8 audit records must be off-loaded onto a different system or storage media from the system being audited."
+  lineinfile:
+      path: /etc/rsyslog.conf
+      regexp: '^.*\@\@'
+      line: "*.* @@{{ rhel8stig_remotelog_server.server }}:{{ rhel8stig_remotelog_server.port }}"
+
+- name: "MEDIUM | RHEL-08-03710 | PATCH | RHEL 8 must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited."
+  lineinfile:
+      path: /etc/rsyslog.conf
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+  with_items:
+      - { regexp: '^\$DefaultNetstreamDriver', line: '$DefaultNetstreamDriver gtls' }
+      - { regexp: '^\$ActionSendStreamDriverMode', line: '$ActionSendStreamDriverMode 1' }
+
+- name: "MEDIUM | RHEL-08-030720 | PATCH | RHEL 8 must authenticate the remote logging server for off-loading audit logs."
+  lineinfile:
+      path: /etc/rsyslog.conf
+      regexp: '^\$ActionSendStreamDriverAuthMode'
+      line: "$ActionSendStreamDriverAuthMode x509/name"
+  notify: restart_auditd
+
+- name: "MEDIUM | RHEL-08-030730 | PATCH | RHEL 8 must notify the System Administrator (SA) and Information System Security Officer (ISSO) (at a minimum) when allocated audit record storage volume reaches 75 percent of the repository maximum audit record storage capacity."
+  lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+  with_items:
+      - { regexp: '^space_left =', line: 'space_left = 25%' }
+      - { regexp: '^space_left_action =', line: 'space_left_action = EMAIL' }
+
+- name: "MEDIUM | RHEL-08-030740 | PATCH | RHEL 8 must compare internal information system clocks at least every 24 hours with a server synchronized to an authoritative time source, such as the United States Naval Observatory (USNO) time servers, or a time server designated for the appropriate DoD network (NIPRNet/SIPRNet), and/or the Global Positioning System (GPS)."
+  lineinfile:
+      path: /etc/chrony.conf
+      regexp: '^server'
+      line: 'server {{ rhel8stig_ntp_server_name }} iburst maxpoll 16'
+  notify: restart {{ rhel8stig_time_service }}
+
+- name: "MEDIUM | RHEL-08-040080 | PATCH | RHEL 8 must be configured to disable USB mass storage."
+  lineinfile:
+      path: "{{ item.path }}"
+      create: yes
+      owner: root
+      group: root
+      mode: 0640
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      insertafter: "{{ item.insertafter }}"
+  with_items:
+      - { path: /etc/modprobe.d/usb-storage.conf, regexp: '^install usb-storage', line: 'install usb-storage /bin/true', insertafter: 'EOF' }
+      - { path: /etc/modprobe.d/blacklist.conf, regexp: '^blacklist usb-storage', line: 'blacklist usb-storage', insertafter: '#blacklist usb-storage'}
+
+- name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs."
+  block:
+      - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs. | Install fapolicy"
+        dnf:
+            name: fapolicyd
+            state: present
+
+      - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs. | Set fapolicy mounts"
+        shell: mount | egrep '^tmpfs| ext4| ext3| xfs' | awk '{ printf "%s\n", $3 }' >> /etc/fapolicyd/fapolicyd.mounts
+        changed_when: false
+        failed_when: false
+
+      - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs. | Start/enable fapolicy"
+        service:
+            name: fapolicyd
+            state: started
+            enabled: yes
+
+      - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs. | Set fapolicy whitelist "
+        lineinfile:
+            path: /etc/fapolicyd/fapolicyd.rules
+            line: "{{ item }}"
+        with_items:
+            - "{{ rhel8stig_fapolicy_white_list }}"
+
+      - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs. | Set fapolicy permissive 0"
+        lineinfile:
+            path: /etc/fapolicyd/fapolicyd.conf
+            regexp: '^permissive ='
+            line: 'permissive = 0'
+

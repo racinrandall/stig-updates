@@ -6,6 +6,7 @@ rhel8stig_machine_uses_uefi: "{{ rhel_08_sys_firmware_efi.stat.exists }}"
 rhel8stig_grub_cfg_path: "{{ rhel8stig_machine_uses_uefi | ternary('/boot/efi/EFI/' ~ (ansible_distribution | lower) ~ '/grub.cfg', '/boot/grub2/grub.cfg') }}"
 rhel8stig_grub_cfg_path_invalid: "{{ (not rhel8stig_machine_uses_uefi) | ternary('/boot/efi/EFI/' ~ (ansible_distribution | lower) ~ '/grub.cfg', '/boot/grub2/grub.cfg') }}"
 
+# Change the password and user for your environment!
 rhel8stig_bootloader_password: 'Boot1tUp!'
 rhel8stig_bootloader_password_hash: "{{ rhel8stig_bootloader_password | grub2_hash(salt='KeokpkECTJeoDhEA5XtiLQ') }}"
 rhel8stig_boot_superuser: admin
@@ -62,5 +63,19 @@ rhel8stig_login_defaults:
     umask: '077'
     create_home: 'yes'
 
+rhel8stig_unnecessary_accounts:
+    - ftp
+    - games
 
+rhel8stig_auditd_disk_error_action: HALT
 
+rhel8stig_auditd_max_log_file_action: SYSLOG
+
+rhel8stig_auditd_disk_full_action: HALT
+
+# Change these for your environment!
+rhel8stig_remotelog_server:
+    server: 10.10.10.10
+    port: 9999
+
+rhel8stig_time_service: chronyd
