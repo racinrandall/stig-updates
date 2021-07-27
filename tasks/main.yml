@@ -4,7 +4,7 @@
       path: /sys/firmware/efi
   register: rhel_08_sys_firmware_efi
   
-  - name: "PRELIM | RHEL-08-010020 | Check if /boot or /boot/efi reside on separate partitions"
+- name: "PRELIM | RHEL-08-010020 | Check if /boot or /boot/efi reside on separate partitions"
   shell: df --output=target /boot | tail -n 1
   args:
       warn: no
