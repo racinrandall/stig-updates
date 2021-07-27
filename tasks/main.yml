@@ -370,6 +370,8 @@
       src: "{{ home_mount.device }}"
       fstype: "{{ home_mount.fstype }}"
       opts: "{{ home_mount.options }},noexec"
+  vars:
+      home_mount: "{{ ansible_mounts | json_query('[?mount == `/home`] | [0]') }}"
 
 - name: "MEDIUM | RHEL-08-010670 | PATCH | RHEL 8 must disable kernel dumps unless needed."
   service:
