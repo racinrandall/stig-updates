@@ -40,3 +40,8 @@
   service:
       name: rsyslog
       state: restarted
+
+- name: restart chronyd
+  service:
+    name: chronyd
+    state: restarted
