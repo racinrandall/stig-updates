@@ -83,11 +83,6 @@ rhel8stig_time_service: chronyd
 
 rhel8stig_ntp_server_name: server.name
 
-- name: restart rsyslog
-  service:
-      name: rsyslog
-      state: restarted
-
 rhel8stig_custom_firewall_zone: "us_mint"
 rhel8stig_white_list_services:
     - ssh
