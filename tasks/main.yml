@@ -17,7 +17,7 @@
   set_fact:
       rhel_08_stig_interactive_homedir_results: "{{ rhel_08_010690_getent.stdout_lines }}"
   when: rhel_08_010690_getent.stdout_lines is defined
-  
+
 - name: "PRELIM | RHEL-08-010020 | RHEL-08-010140 | RHEL-08-010150 | Check whether machine is UEFI-based"
   stat:
       path: /sys/firmware/efi
