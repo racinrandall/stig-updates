@@ -81,9 +81,9 @@ rhel8stig_remotelog_server:
 rhel8stig_time_service: chronyd
 # Change this to match your ntp server
 
-rhel8stig_ntp_server_name: server.name
+rhel8stig_ntp_server_name: 10.108.10.1
 
-rhel8stig_custom_firewall_zone: "us_mint"
+rhel8stig_custom_firewall_zone: "work"
 rhel8stig_white_list_services:
     - ssh
 
