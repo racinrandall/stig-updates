@@ -12,6 +12,6 @@
 - name: Apply Audit Rules
   template:
     src: audit.rules.j2
-    dest: /etc/audit/audit.d/rules.d
+    dest: /etc/audit/rules.d/audit.rules
   notify: restart_auditd
 
