@@ -42,3 +42,25 @@ rhel8stig_pam_faillock:
     unlock_time: 0
     fail_for_root: yes
 
+rhel8stig_password_complexity:
+    ucredit: -1
+    lcredit: -1
+    dcredit: -1
+    ocredit: -1
+    difok: 8
+    minclass: 4
+    maxrepeat: 3
+    maxclassrepeat: 4
+    minlen: 15
+    dictcheck: 1
+
+rhel8stig_login_defaults:
+    encrypt_method: SHA512
+    pass_min_days: 1
+    pass_max_days: 60
+    fail_delay_secs: 4
+    umask: '077'
+    create_home: 'yes'
+
+
+

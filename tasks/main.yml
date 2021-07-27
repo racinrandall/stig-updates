@@ -794,3 +794,73 @@
       - { path: /etc/pam.d/system-auth, regexp: '^password   required pam_pwquality.so', line: 'password   required pam_pwquality.so retry=3' }
       - { path: /etc/pam.d/password-auth, regexp: '^password   required pam_pwquality.so', line: 'password   required pam_pwquality.so retry=3' }
 
+- name: "MEDIUM | RHEL-08-020160 | PATCH | RHEL 8 must require the change of at least four character classes when passwords are changed."
+  lineinfile:
+      path: /etc/security/pwquality.conf
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: '^#?\s*minclass'
+      line: "minclass = {{ rhel8stig_password_complexity.minclass | default('4') }}"
+
+- name: "MEDIUM | RHEL-08-020170 | PATCH | RHEL 8 must require the change of at least 8 characters when passwords are changed."
+  lineinfile:
+      path: /etc/security/pwquality.conf
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: '^#?\s*difok'
+      line: "difok = {{ rhel8stig_password_complexity.difok | default('8') }}"
+
+- name: "MEDIUM | RHEL8-08-020180 | PATCH | RHEL 8 passwords for new users or password changes must have a 24 hours/1 day minimum password lifetime restriction in /etc/shadow."
+  block:
+      - name: "MEDIUM | RHEL8-08-020180 | AUDIT | RHEL 8 passwords for new users or password changes must have a 24 hours/1 day minimum password lifetime restriction in /etc/shadow. | Get list of users"
+        command: "awk -F: '$1 !~ /^root$/ && $2 !~ /^[!*]/ && $4 < 1 {print $1}' /etc/shadow"
+        changed_when: false
+        failed_when: false
+        register: rhel_08_020180_users
+
+      - name: "MEDIUM | RHEL8-08-020180 | PATCH | RHEL 8 passwords for new users or password changes must have a 24 hours/1 day minimum password lifetime restriction in /etc/shadow. | Change user restriction"
+        command: chage -m 1 {{ item }}
+        with_items: "{{ rhel_08_020180_users.stdout_lines }}"
+
+- name: "MEDIUM | RHEL-08-020190 | PATCH | RHEL 8 passwords for new users or password changes must have a 24 hours/1 day minimum password lifetime restriction in /etc/logins.def."
+  lineinfile:
+      path: /etc/login.defs
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: ^#?PASS_MIN_DAYS
+      line: "PASS_MIN_DAYS {{ rhel8stig_login_defaults.pass_min_days | default('1') }}"
+
+- name: "MEDIUM | RHEL-08-020200 | PATCH | RHEL 8 user account passwords must have a 60-day maximum password lifetime restriction."
+  lineinfile:
+      path: /etc/login.defs
+      create: yes
+      owner: root
+      group: root
+      mode: 0644
+      regexp: ^#?PASS_MAX_DAYS
+      line: "PASS_MAX_DAYS {{ rhel8stig_login_defaults.pass_max_days | default('60') }}"
+
+- name: "MEDIUM | RHEL-08-020210 | PATCH | RHEL 8 user account passwords must be configured so that existing passwords are restricted to a 60-day maximum lifetime."
+  block:
+      - name: "MEDIUM | RHEL-08-020210 | AUDIT | RHEL 8 user account passwords must be configured so that existing passwords are restricted to a 60-day maximum lifetime. | Get list of users"
+        command: "awk -F: '$1 !~ /^root$/ && $2 !~ /^[!*]/ && $5 > 60 {print $1}' /etc/shadow"
+        check_mode: no
+        changed_when: rhel_08_020210_users.stdout | length > 0
+        register: rhel_08_020210_users
+
+      - name: "MEDIUM | RHEL-08-020210 | PATCH | RHEL 8 user account passwords must be configured so that existing passwords are restricted to a 60-day maximum lifetime. | Reset password timeout to prevent locking out user."
+        command: chage -d '-1 day' {{ item }}
+        check_mode: "{{ rhel8stig_disruptive_check_mode }}"
+        with_items: "{{ rhel_08_020210_users.stdout_lines }}"
+
+      - name: "MEDIUM | RHEL-08-020210 | PATCH | RHEL 8 user account passwords must be configured so that existing passwords are restricted to a 60-day maximum lifetime. | Set 60 max lifetime"
+        command: chage -M 60 {{ item }}
+        check_mode: "{{ rhel8stig_disruptive_check_mode }}"
+        with_items: "{{ rhel_08_020210_users.stdout_lines }}"
+
