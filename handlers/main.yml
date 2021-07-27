@@ -1,0 +1,5 @@
+---
+- name: restart_auditd
+  command: /usr/sbin/service auditd restart
+  args:
+    warn: no

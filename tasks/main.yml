@@ -1,0 +1,21 @@
+---
+- block:
+  - name: find all unneeded audit rules
+    find:
+      paths: "/etc/audit/audit.d/"
+      hidden: true
+      recurse: true
+    register: unneeded_files
+
+  - name: remove unneeded audit rules before applying proper rules
+    file:
+      path: "{{ item.path }}"
+      state: absent
+    with_items: {{ unneeded_files.files }}
+
+  - name: Apply Audit Rules
+    template:
+      src: audit.rules.j2
+      dest: /etc/audit/audit.d/rules.d
+  notify: restart_auditd
+
