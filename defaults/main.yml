@@ -65,7 +65,7 @@ rhel8stig_login_defaults:
 rhel8stig_unnecessary_accounts:
     - ftp
     - games
-    - nobody
+
 
 rhel8stig_remove_unnecessary_user_files: no
 
