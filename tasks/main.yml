@@ -84,50 +84,50 @@
       - password-auth
       - system-auth
 
-#- name: |
-#        "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance."
-#        "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes."
-#  block:
-#      # the createuser.cfg task is a workaround for the the ansible bug https://github.com/ansible/ansible/pull/59823
-#      - name: |
-#              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Create user.cfg"
-#              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Create user.cfg"
-#        shell: test -f {{ file_q }} && echo exists || {{ create_cmd }}
-#        args:
-#            warn: no
-#        check_mode: "{{ ansible_check_mode is not defined }}"
-#        register: rhel8stig_create_grub_user_cfg
-#        changed_when:
-#            - rhel8stig_create_grub_user_cfg.stdout == "created"
-#        failed_when:
-#            - rhel8stig_create_grub_user_cfg.stdout != "created"
-#            - rhel8stig_create_grub_user_cfg.stdout != "exists"
-#        vars:
-#            file_q: "{{ (rhel8stig_grub_cfg_path | dirname ~ '/user.cfg') | quote }}"
-#            create_cmd: "({{ ansible_check_mode | ternary('', 'touch ' ~ file_q ~ ' && ') }}echo created)"
+- name: |
+        "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance."
+        "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes."
+  block:
+      # the createuser.cfg task is a workaround for the the ansible bug https://github.com/ansible/ansible/pull/59823
+      - name: |
+              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Create user.cfg"
+              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Create user.cfg"
+        shell: test -f {{ file_q }} && echo exists || {{ create_cmd }}
+        args:
+            warn: no
+        check_mode: "{{ ansible_check_mode is not defined }}"
+        register: rhel8stig_create_grub_user_cfg
+        changed_when:
+            - rhel8stig_create_grub_user_cfg.stdout == "created"
+        failed_when:
+            - rhel8stig_create_grub_user_cfg.stdout != "created"
+            - rhel8stig_create_grub_user_cfg.stdout != "exists"
+        vars:
+            file_q: "{{ (rhel8stig_grub_cfg_path | dirname ~ '/user.cfg') | quote }}"
+            create_cmd: "({{ ansible_check_mode | ternary('', 'touch ' ~ file_q ~ ' && ') }}echo created)"
 
-#      - name: |
-#              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Set Grub Password"
-#              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Set Grub Password"
-#        lineinfile:
-#            path: "{{ rhel8stig_grub_cfg_path | dirname }}/user.cfg"
-#            create: yes
-#            regexp: ^GRUB2_PASSWORD=
-#            line: GRUB2_PASSWORD={{ rhel8stig_bootloader_password_hash }}
-#            owner: root
-#            group: root
-#            mode: 0640
-#        notify: confirm grub2 user cfg
+      - name: |
+              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Set Grub Password"
+              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Set Grub Password"
+        lineinfile:
+            path: "{{ rhel8stig_grub_cfg_path | dirname }}/user.cfg"
+            create: yes
+            regexp: ^GRUB2_PASSWORD=
+            line: GRUB2_PASSWORD={{ rhel8stig_bootloader_password_hash }}
+            owner: root
+            group: root
+            mode: 0640
+        notify: confirm grub2 user cfg
 
-#      - name: |
-#              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Set UEFI superusers"
-#              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Set UEFI superusers"
-#        lineinfile:
-#            dest: "{{ rhel8stig_grub_cfg_path | dirname }}/grub.cfg"
-#            regexp: '^set superusers'
-#            line: 'set superusers="{{ rhel8stig_boot_superuser }}"'
-#            insertafter: '### BEGIN /etc/grub.d/01_users ###'
-#        notify: confirm grub2 user cfg
+      - name: |
+              "HIGH | RHEL-08-010140 | PATCH | RHEL 8 operating systems booted with United Extensible Firmware Interface (UEFI) implemented must require authentication upon booting into single-user mode and maintenance. | Set UEFI superusers"
+              "HIGH | RHEL-08-010150 | PATCH | RHEL 8 operating systems booted with a BIOS must require authentication upon booting into single-user and maintenance modes. | Set UEFI superusers"
+        lineinfile:
+            dest: "{{ rhel8stig_grub_cfg_path | dirname }}/grub.cfg"
+            regexp: '^set superusers'
+            line: 'set superusers="{{ rhel8stig_boot_superuser }}"'
+            insertafter: '### BEGIN /etc/grub.d/01_users ###'
+        notify: confirm grub2 user cfg
 
 - name: "MEDIUM | RHEL-08-010160 | PATCH | The RHEL 8 pam_unix.so module must use a FIPS 140-2 approved cryptographic hashing algorithm for system authentication. | Add sha512 argument"
   pamd:
@@ -777,6 +777,12 @@
             - system-auth
             - password-auth
 
+- name: " MEDIUM | RHEL-08-020041 | PATCH | RHEL 8 must ensure session control is automatically started at shell initialization."
+  lineinfile:
+      path: /etc/bashrc
+      regexp: '^\[ -n "$PS1" -a -z "$TMUX" \]'
+      line: '[ -n "$PS1" -a -z "$TMUX" ] && exec tmux'
+      
 - name: "LOW | RHEL-08-020042 | PATCH | RHEL 8 must prevent users from disabling session control mechanisms."
   lineinfile:
       path: /etc/shells
