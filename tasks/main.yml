@@ -777,10 +777,14 @@
             - system-auth
             - password-auth
 
+# This task was added to remove any existing lines that have bashrc starting TMUX that was required for STIG
+# Once Tenable addresses this issue, this task can be removed.
 - name: " MEDIUM | RHEL-08-020041 | PATCH | RHEL 8 must ensure session control is automatically started at shell initialization."
   lineinfile:
       path: /etc/bashrc
       regexp: '^\[ -n "$PS1" -a -z "$TMUX" \]'
+      state: absent
+
       line: '[ -n "$PS1" -a -z "$TMUX" ]' # Once Tenable addreses this issue, remove this line and uncomment line below
       # STIG requires tmux to be started at login, but this migh be breaking Nessus Scans
       #line: '[ -n "$PS1" -a -z "$TMUX" ] && exec tmux'
