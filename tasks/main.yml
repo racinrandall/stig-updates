@@ -69,8 +69,8 @@
       mode: '0644'
   notify: restart rsyslog
   with_items:
-      - { regexp: '^auth.*', line: 'auth.*,authpriv.* /var/log/secure' }
-      - { regexp: '^daemon.*', line: 'daemon.* /var/log/messages' }
+      - { regexp: '^auth.*', line: 'auth.*;authpriv.*; daemon.* /var/log/secure' }
+
 
 - name: "MEDIUM | RHEL-08-010130 | PATCH | RHEL 8 must employ FIPS 140-2 approved cryptographic hashing algorithms for all created passwords. | Add rounds argument"
   pamd:
@@ -781,7 +781,9 @@
   lineinfile:
       path: /etc/bashrc
       regexp: '^\[ -n "$PS1" -a -z "$TMUX" \]'
-      line: '[ -n "$PS1" -a -z "$TMUX" ] && exec tmux'
+      line: '[ -n "$PS1" -a -z "$TMUX" ]' # Once Tenable addreses this issue, remove this line and uncomment line below
+      # STIG requires tmux to be started at login, but this migh be breaking Nessus Scans
+      #line: '[ -n "$PS1" -a -z "$TMUX" ] && exec tmux'
 
 - name: "LOW | RHEL-08-020042 | PATCH | RHEL 8 must prevent users from disabling session control mechanisms."
   lineinfile:
