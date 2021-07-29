@@ -1377,6 +1377,11 @@
             permanent: true
             state: present
 
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone"
+        template:
+          src: mint.xml.j2
+          dest: "/etc/firewalld/zones/{{ rhel8stig_custom_firewall_zone }}.xml"
+          
       - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Allow internet and ssh"
         firewalld:
             zone: "{{ rhel8stig_custom_firewall_zone }}"
@@ -1456,7 +1461,7 @@
       regexp: '(?i)^#?RekeyLimit'
       line: 'RekeyLimit 1G 1h'
   notify: restart sshd
-  
+
 - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed."
   block:
       - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed. | Check for setting existing"
