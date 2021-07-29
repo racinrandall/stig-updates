@@ -4,11 +4,6 @@
   args:
     warn: no
 
-- name: reboot system
-  shell: sleep 3; reboot
-  async: 15
-  poll: 0
-
 - name: restart sshd
   service:
       name: sshd
@@ -45,3 +40,8 @@
   service:
       name: "{{ rhel8stig_time_service }}"
       state: restarted
+
+- name: reboot system
+  shell: sleep 3; reboot
+  async: 15
+  poll: 0
