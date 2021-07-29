@@ -1450,6 +1450,13 @@
             regexp: '^FirewallBackend='
             line: 'FirewallBackend=nftables'
 
+- name: "MEDIUM | RHEL-08-040162 | PATCH | RHEL 8 must force a frequent session key renegotiation for SSH connections by the client."
+  lineinfile:
+      path: /etc/ssh/ssh_config
+      regexp: '(?i)^#?RekeyLimit'
+      line: 'RekeyLimit 1G 1h'
+  notify: restart sshd
+  
 - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed."
   block:
       - name: "HIGH | RHEL-08-040171 | PATCH | The x86 Ctrl-Alt-Delete key sequence in RHEL 8 must be disabled if a graphical user interface is installed. | Check for setting existing"
