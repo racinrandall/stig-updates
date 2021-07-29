@@ -1369,34 +1369,34 @@
       - { path: /etc/modprobe.d/blacklist.conf, regexp: '^blacklist usb-storage', line: 'blacklist usb-storage', insertafter: '#blacklist usb-storage'}
 
 # Tries to create new zone
-#- name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems."
-#  block:
-#      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone"
-#        firewalld:
-#            zone: "{{ rhel8stig_custom_firewall_zone }}"
-#            permanent: true
-#            state: present
+- name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems."
+  block:
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone"
+        firewalld:
+            zone: "{{ rhel8stig_custom_firewall_zone }}"
+            permanent: true
+            state: present
 
-#      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Allow internet and ssh"
-#        firewalld:
-#            zone: "{{ rhel8stig_custom_firewall_zone }}"
-#            permanent: true
-#            state: enabled
-#            service: "{{ item }}"
-#        with_items:
-#            - "{{ rhel8stig_white_list_services }}"
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Allow internet and ssh"
+        firewalld:
+            zone: "{{ rhel8stig_custom_firewall_zone }}"
+            permanent: true
+            state: enabled
+            service: "{{ item }}"
+        with_items:
+            - "{{ rhel8stig_white_list_services }}"
 
-#      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Reload zones"
-#        command: firewall-cmd --reload
-#        changed_when: rhel_08_040090_zone_reload.rc == 0
-#        failed_when: rhel_08_040090_zone_reload.rc >= 2
-#        register: rhel_08_040090_zone_reload
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Reload zones"
+        command: firewall-cmd --reload
+        changed_when: rhel_08_040090_zone_reload.rc == 0
+        failed_when: rhel_08_040090_zone_reload.rc >= 2
+        register: rhel_08_040090_zone_reload
 
-#      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone as default"
-#        command: "firewall-cmd --set-default-zone={{ rhel8stig_custom_firewall_zone }}"
-#        changed_when: rhel_08_040090_default_zone_set.rc == 0
-#        failed_when: rhel_08_040090_default_zone_set.rc >= 2
-#        register: rhel_08_040090_default_zone_set
+      - name: "MEDIUM | RHEL-08-040090 | PATCH | A RHEL 8 firewall must employ a deny-all, allow-by-exception policy for allowing connections to other systems. | Set new zone as default"
+        command: "firewall-cmd --set-default-zone={{ rhel8stig_custom_firewall_zone }}"
+        changed_when: rhel_08_040090_default_zone_set.rc == 0
+        failed_when: rhel_08_040090_default_zone_set.rc >= 2
+        register: rhel_08_040090_default_zone_set
 
 
 - name: "MEDIUM | RHEL-040135 | PATCH | The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs."

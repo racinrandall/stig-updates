@@ -86,7 +86,7 @@ rhel8stig_time_service: chronyd
 
 rhel8stig_ntp_server_name: 10.108.10.1
 
-rhel8stig_custom_firewall_zone: "work"
+rhel8stig_custom_firewall_zone: "mint"
 rhel8stig_white_list_services:
     - ssh
 
