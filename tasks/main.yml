@@ -1133,6 +1133,14 @@
       group: root
       mode: 0600
 
+- name: "MEDIUM | RHEL-08-030610 | PATCH | RHEL 8 must allow only the Information System Security Manager (ISSM) (or individuals or roles appointed by the ISSM) to select which auditable events are to be audited."
+  file:
+      path: "{{ item }}"
+      mode: 0640
+  with_items:
+      - /etc/audit/rules.d/audit.rules
+      - /etc/audit/auditd.conf
+
 - name: "MEDIUM | RHEL-08-030650 | PATCH | RHEL 8 must use cryptographic mechanisms to protect the integrity of audit tools."
   lineinfile:
       path: /etc/aide.conf
