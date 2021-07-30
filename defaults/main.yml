@@ -75,6 +75,7 @@ rhel8stig_auditd_disk_error_action: HALT
 rhel8stig_auditd_max_log_file_action: syslog
 
 rhel8stig_auditd_disk_full_action: HALT
+rhel8stig_audisp_overflow_action: syslog
 
 # Change these for your environment!
 rhel8stig_remotelog_server:
