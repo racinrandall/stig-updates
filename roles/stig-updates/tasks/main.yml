@@ -1192,7 +1192,7 @@
       path: /etc/audit/auditd.conf
       regexp: '^overflow_action ='
       line: 'overflow_action = {{ rhel8stig_audisp_overflow_action }}'
-  notify: restart auditd
+  notify: restart_auditd
 
 - name: "MEDIUM | RHEL-08-03710 | PATCH | RHEL 8 must encrypt the transfer of audit records off-loaded onto a different system or media from the system being audited."
   lineinfile:
